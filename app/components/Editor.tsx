@@ -16,8 +16,11 @@ export default function Editor({ note }: Props) {
   const [saving, setSaving] = useState(false)
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [StarterKit],
-    content: note.content as object || {},
+    content: (note.content && Object.keys(note.content).length > 0) 
+  ? note.content as object 
+  : '<p></p>',
     editorProps: {
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[400px]',
@@ -29,10 +32,10 @@ export default function Editor({ note }: Props) {
   })
 
   useEffect(() => {
-    if (editor && note.content) {
-      editor.commands.setContent(note.content as object)
-    }
-    setTitle(note.title)
+    if (editor) {
+      editor.commands.setContent(note.content && Object.keys(note.content as object).length>0?note.content as object :'<p></p>'
+      )
+    setTitle(note.title)}
   }, [note.id])
 
   let saveTimeout: ReturnType<typeof setTimeout>
