@@ -5,26 +5,26 @@ export function subscribeToNote(
   onUpdate: (content: object) => void
 ) {
   const supabase = createClient()
+  let lastUpdatedAt: string | null = null
 
-  const channel = supabase
-    .channel(`note-${noteId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'notes',
-        filter: `id=eq.${noteId}`,
-      },
-      (payload) => {
-        if (payload.new.content) {
-          onUpdate(payload.new.content)
-        }
+  // Poll every 2 seconds as fallback
+  const interval = setInterval(async () => {
+    const { data } = await supabase
+      .from('notes')
+      .select('content, updated_at')
+      .eq('id', noteId)
+      .single()
+
+    if (data && data.updated_at !== lastUpdatedAt) {
+      if (lastUpdatedAt !== null) {
+        // Only update if not the first poll
+        onUpdate(data.content)
       }
-    )
-    .subscribe()
+      lastUpdatedAt = data.updated_at
+    }
+  }, 2000)
 
   return () => {
-    supabase.removeChannel(channel)
+    clearInterval(interval)
   }
 }

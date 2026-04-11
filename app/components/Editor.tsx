@@ -18,6 +18,7 @@ export default function Editor({ note }: Props) {
   const [connected, setConnected] = useState(false)
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isRemoteUpdate = useRef(false)
+  const editorRef = useRef<any>(null)
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -36,25 +37,14 @@ export default function Editor({ note }: Props) {
     },
   })
 
-  // Subscribe to realtime changes from other users
+  // Keep editorRef in sync
   useEffect(() => {
-    setConnected(true)
-
-    const unsubscribe = subscribeToNote(note.id, (content) => {
-      if (!editor) return
-      isRemoteUpdate.current = true
-      const { from, to } = editor.state.selection
-      editor.commands.setContent(content)
-      editor.commands.setTextSelection({ from, to })
-      isRemoteUpdate.current = false
-    })
-
-    return () => {
-      unsubscribe()
-      setConnected(false)
+    if (editor) {
+      editorRef.current = editor
     }
-  }, [note.id, editor])
+  }, [editor])
 
+  // Load note content when note changes
   useEffect(() => {
     if (editor) {
       editor.commands.setContent(
@@ -62,7 +52,26 @@ export default function Editor({ note }: Props) {
           ? note.content as object
           : '<p></p>'
       )
-      setTitle(note.title)
+    }
+    setTitle(note.title)
+  }, [note.id])
+
+  // Subscribe to polling updates from other users
+  useEffect(() => {
+    setConnected(true)
+
+    const unsubscribe = subscribeToNote(note.id, (content) => {
+      console.log('Remote update received')
+      if (editorRef.current) {
+        isRemoteUpdate.current = true
+        editorRef.current.commands.setContent(content)
+        isRemoteUpdate.current = false
+      }
+    })
+
+    return () => {
+      unsubscribe()
+      setConnected(false)
     }
   }, [note.id])
 
@@ -71,10 +80,11 @@ export default function Editor({ note }: Props) {
     saveTimeout.current = setTimeout(async () => {
       setSaving(true)
       const supabase = createClient()
-      await supabase
+      const { error } = await supabase
         .from('notes')
         .update({ content })
         .eq('id', note.id)
+      console.log('Save:', error ? error.message : 'ok')
       setSaving(false)
     }, 1000)
   }
