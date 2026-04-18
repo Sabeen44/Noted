@@ -112,3 +112,6 @@ export type Notebook = Database['public']['Tables']['notebooks']['Row']
 export type Note = Database['public']['Tables']['notes']['Row']
 export type NoteShare = Database['public']['Tables']['note_shares']['Row']
 export type Profile = Database['public']['Tables']['profiles']['Row']
+
+// Note extended with sharing context (undefined = you own it)
+export type NoteWithPermission = Note & { sharedPermission?: 'read' | 'edit' }
