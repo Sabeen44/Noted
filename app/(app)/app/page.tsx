@@ -6,6 +6,14 @@ import type { Note, NoteWithPermission } from '@/types/database'
 const PAGE_SIZE = 50
 
 export default async function AppPage() {
+  // Guard: fail fast with a clear message if env vars aren't configured.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    throw new Error(
+      'Missing Supabase environment variables. ' +
+      'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel project settings.'
+    )
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -40,7 +48,7 @@ export default async function AppPage() {
   ])
 
   const sharedNotes: NoteWithPermission[] = (shareRows ?? [])
-    .filter((row): row is typeof row & { notes: Note } => row.notes !== null)
+    .filter((row): row is typeof row & { notes: Note } => !!row.notes && !Array.isArray(row.notes))
     .map(row => ({
       ...(row.notes as unknown as Note),
       sharedPermission: row.permission as 'read' | 'edit',
@@ -57,7 +65,7 @@ export default async function AppPage() {
         avatarUrl: profile?.avatar_url ?? null,
       }}
       notebooks={notebooks ?? []}
-      initialOwnedNotes={ownedNotes ?? []}
+      initialOwnedNotes={(ownedNotes ?? []) as NoteWithPermission[]}
       sharedNotes={sharedNotes}
       initialHasMore={totalOwned > PAGE_SIZE}
     />
